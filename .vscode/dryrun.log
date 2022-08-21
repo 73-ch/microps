@@ -1,0 +1,11 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory '/home/nami/microps'
+cc  -g -W -Wall -Wno-unused-parameter -iquote . -pthread -iquote platform/linux -c test/step0.c -o test/step0.o
+cc  -g -W -Wall -Wno-unused-parameter -iquote . -pthread -iquote platform/linux -c util.c -o util.o
+cc  -g -W -Wall -Wno-unused-parameter -iquote . -pthread -iquote platform/linux -c net.c -o net.o
+cc  -g -W -Wall -Wno-unused-parameter -iquote . -pthread -iquote platform/linux -c driver/dummy.c -o driver/dummy.o
+cc  -g -W -Wall -Wno-unused-parameter -iquote . -pthread -iquote platform/linux -o test/step0.exe test/step0.o util.o net.o driver/dummy.o test/test.h 
+cc  -g -W -Wall -Wno-unused-parameter -iquote . -pthread -iquote platform/linux -c test/step1.c -o test/step1.o
+cc  -g -W -Wall -Wno-unused-parameter -iquote . -pthread -iquote platform/linux -o test/step1.exe test/step1.o util.o net.o driver/dummy.o test/test.h 
+make: Leaving directory '/home/nami/microps'
+ 
