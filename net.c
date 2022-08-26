@@ -50,6 +50,8 @@ static int net_device_open(struct net_device *dev) {
         }
     }
 
+    debugf("open all devices...");
+
     dev->flags |= NET_DEVICE_FLAG_UP;
     infof("dev=%s, state=%s", dev->name, NET_DEVICE_STATE(dev));
 
