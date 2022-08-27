@@ -63,7 +63,7 @@ static int loopback_isr(unsigned int irq, void *id) {
     struct loopback_queue_entry *entry;
 
     dev = (struct net_device *) id;
-    mutex_lock(&PRIV(dev)->queue);
+    mutex_lock((void *)&PRIV(dev)->queue);
 
     while(1) {
         entry = queue_pop(&PRIV(dev)->queue);
@@ -77,7 +77,7 @@ static int loopback_isr(unsigned int irq, void *id) {
         memory_free(entry);
     }
 
-    mutex_unlock(&PRIV(dev)->queue);
+    mutex_unlock((void *)&PRIV(dev)->queue);
 
     return 0;
 }
