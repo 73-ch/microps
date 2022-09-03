@@ -6,6 +6,7 @@
 #include "util.h"
 #include "net.h"
 #include "ip.h"
+#include "platform.h"
 
 struct ip_hdr {
     uint8_t vhl;
@@ -23,6 +24,8 @@ struct ip_hdr {
 
 const ip_addr_t IP_ADDR_ANY = 0x00000000;
 const ip_addr_t IP_ADDR_BROADCAST = 0xffffffff;
+
+static struct ip_iface *ifaces;
 
 int ip_addr_pton(const char *p, ip_addr_t *n) {
     char *sp, *ep;
@@ -89,10 +92,75 @@ void ip_dump(const uint8_t *data, size_t len) {
     funlockfile(stderr);
 }
 
+struct ip_iface * ip_iface_alloc(const char *addr, const char *netmask) {
+    struct ip_iface *iface;
+
+    iface = memory_alloc(sizeof(*iface));
+    if(!iface) {
+        errorf("memory_alloc() failure\n");
+        return NULL;
+    }
+
+    NET_IFACE(iface)->family = NET_IFACE_FAMILY_IP;
+
+    if (ip_addr_pton(addr, &iface->unicast)) {
+        errorf("ip addr cast error, %s\n", addr);
+        memory_free(iface);
+        return NULL;
+    }
+
+    if (ip_addr_pton(netmask, &iface->netmask)) {
+        errorf("netmask cast error, %s\n", netmask);
+        memory_free(iface);
+        return NULL;
+    }
+
+    iface->broadcast = iface->unicast | ~iface->netmask;
+
+    return iface;
+}
+
+int ip_iface_register(struct net_device *dev, struct ip_iface *iface) {
+    char addr1[IP_ADDR_STR_LEN];
+    char addr2[IP_ADDR_STR_LEN];
+    char addr3[IP_ADDR_STR_LEN];
+
+    if (net_device_add_iface(dev, NET_IFACE(iface)) == -1) {
+        return -1;
+    }
+
+    infof("hello");
+
+
+    iface->next = ifaces;
+    ifaces = iface;
+
+    infof("registerd: dev=%s, unicast=%s, netmask=%s, broadcast=%s", dev->name,
+          ip_addr_ntop(iface->unicast, addr1, sizeof(addr1)),
+          ip_addr_ntop(iface->netmask, addr2, sizeof(addr2)),
+          ip_addr_ntop(iface->broadcast, addr3, sizeof(addr3)));
+
+    return 0;
+}
+
+struct ip_iface * ip_iface_select(ip_addr_t addr) {
+    struct ip_iface *iface;
+
+    for (iface = ifaces; iface; iface = iface->next) {
+        if (iface->unicast == addr) {
+            return iface;
+        }
+    }
+
+    return NULL;
+}
+
 static void ip_input(const uint8_t *data, size_t len, struct net_device *dev) {
     struct ip_hdr *hdr;
     uint8_t v;
     uint16_t hlen, total, offset;
+    struct ip_iface *iface;
+    char addr[IP_ADDR_STR_LEN];
 
     if (len < IP_HDR_SIZE_MIN) {
         errorf("too short");
@@ -130,7 +198,17 @@ static void ip_input(const uint8_t *data, size_t len, struct net_device *dev) {
         return;
     }
 
-    debugf("dev=%s, protocol=%u, total=%u", dev->name, hdr->protocol, total);
+    iface = ifaces;
+    if (!iface) {
+        errorf("there is no valid iface.");
+        return;
+    }
+
+    if (hdr->dst != iface->unicast && hdr->dst != 0xff && hdr->dst != iface->broadcast) {
+        return;
+    }
+
+    debugf("dev=%s, iface=%s, protocol=%u, total=%u", dev->name, ip_addr_ntop(iface->unicast, addr, sizeof(addr)), hdr->protocol, total);
     ip_dump(data, total);
 }
 
