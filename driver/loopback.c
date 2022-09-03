@@ -71,7 +71,7 @@ static int loopback_isr(unsigned int irq, void *id) {
             break;
         }
 
-        debugf("queue popped (num:%u), dev=%s, type=0x04x, len=%zd", PRIV(dev)->queue.num, dev->name, entry->type, entry->len);
+        debugf("queue popped (num:%u), dev=%s, type=0x%04x, len=%zd", PRIV(dev)->queue.num, dev->name, entry->type, entry->len);
         debugdump(entry->data, entry->len);
         net_input_handler(entry->type, entry->data, entry->len, dev);
         memory_free(entry);
