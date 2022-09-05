@@ -211,7 +211,7 @@ static void ip_input(const uint8_t *data, size_t len, struct net_device *dev) {
         return;
     }
 
-    hlen = hdr->vhl & 0x0f;
+    hlen = (hdr->vhl & 0x0f) << 2;
     if (len < hlen) {
         errorf("input data length(%u) less than header length(%u)", len, hlen);
         return;
@@ -224,7 +224,7 @@ static void ip_input(const uint8_t *data, size_t len, struct net_device *dev) {
         return;
     }
 
-    if (cksum16((uint16_t *) data, len, 0) != 0) {
+    if (cksum16((uint16_t *) hdr, hlen, 0) != 0) {
         errorf("input data cksum error, %u", cksum16((uint16_t *) data, len, 0));
         return;
     }
@@ -251,7 +251,7 @@ static void ip_input(const uint8_t *data, size_t len, struct net_device *dev) {
 
     for (protocol = protocols; protocol; protocol = protocol->next) {
         if (hdr->protocol == protocol->type) {
-            protocol->handler(data, len, hdr->src, hdr->dst, iface);
+            protocol->handler((uint8_t *)hdr + hlen, total - hlen, hdr->src, hdr->dst, iface);
             return;
         }
     }
@@ -282,28 +282,28 @@ ip_output_core(struct ip_iface *iface, uint8_t protocol, const uint8_t *data, si
 
     hdr = (struct ip_hdr *) buf;
 
-    hlen = IP_HDR_SIZE_MIN;
-    hdr->vhl = (IP_VERSION_IPV4 << 4 & 0xf0) | ((hlen >> 2) & 0x0f);
+    hlen = sizeof(*hdr);
+    hdr->vhl = (IP_VERSION_IPV4 << 4 & 0xf0) | (hlen >> 2);
     hdr->tos = 0;
-    total = hton16(len);
-    hdr->total = total;
+    total = hlen + len;
+    hdr->total = hton16(total);
     hdr->id = hton16(id);
     hdr->offset = hton16(offset);
-    hdr->ttl = 255;
+    hdr->ttl = 0xff;
     hdr->protocol = protocol;
     hdr->sum = 0;
     hdr->src = src;
     hdr->dst = dst;
 
-    hdr->sum = cksum16((uint16_t *) hdr, len, 0);
+    hdr->sum = cksum16((uint16_t *) hdr, hlen, 0);
 
-    memcpy(buf + IP_HDR_SIZE_MIN, data, len - IP_HDR_SIZE_MIN);
+    memcpy(hdr+1, data, len);
 
     debugf("dev=%s, dst=%s, protocol=%u, len=%u", NET_IFACE(iface)->dev->name, ip_addr_ntop(dst, addr, sizeof(addr)),
            protocol, len);
     ip_dump(buf, len);
 
-    return ip_output_device(iface, buf, len, dst);
+    return ip_output_device(iface, buf, total, dst);
 }
 
 static uint16_t ip_generate_id(void) {

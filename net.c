@@ -188,7 +188,7 @@ int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net
 
             entry->dev = dev;
             entry->len = len;
-            memcpy(entry->data, data, len);
+            memcpy(entry+1, data, len);
 
 //            mutex_lock(&proto->mutex);
 
