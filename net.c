@@ -9,6 +9,7 @@
 #include "util.h"
 #include "ip.h"
 #include "icmp.h"
+#include "arp.h"
 
 struct net_protocol {
     struct net_protocol *next;
@@ -194,6 +195,7 @@ int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net
 
             if (!queue_push(&proto->queue, entry)) {
                 errorf("queue_push error, dev=%s, protocol=0x%04x", dev->name, proto->type);
+                memory_free(entry);
                 return -1;
             }
 
@@ -262,6 +264,11 @@ void net_shutdown(void) {
 int net_init(void) {
     if (intr_init() == -1) {
         errorf("intr_init() failure");
+        return -1;
+    }
+
+    if (arp_init() == -1) {
+        errorf("arp_init() failure");
         return -1;
     }
 
