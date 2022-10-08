@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/time.h>d
 
 #include "platform.h"
 
@@ -15,6 +16,7 @@ struct net_protocol {
     struct net_protocol *next;
     uint16_t type;
     struct queue_head queue;
+
     void (*handler)(const uint8_t *data, size_t len, struct net_device *dev);
 };
 
@@ -24,8 +26,17 @@ struct net_protocol_queue_entry {
     uint8_t data[];
 };
 
+struct net_timer {
+    struct net_time *next;
+    struct timeval interval;
+    struct timeval last;
+
+    void (*handler)(void);
+};
+
 static struct net_device *devices;
 static struct net_protocol *protocols;
+static struct net_timer *timers;
 
 struct net_device *
 net_device_alloc(void) {
@@ -37,6 +48,41 @@ net_device_alloc(void) {
         return NULL;
     }
     return dev;
+}
+
+/* NOTE: must not be call after net_run() */
+int net_timer_register(struct timeval interval, void(*handler)()) {
+    struct net_timer *timer;
+
+    timer = memory_alloc(sizeof(*timer));
+    if (!timer) {
+        errorf("memory_alloc failed");
+        return -1;
+    }
+
+    gettimeofday(&timer->last, NULL);
+    timer->interval = interval;
+    timer->handler = handler;
+    timer->next = timers;
+    timers = timer;
+
+    infof("registered: interval={%d, %d}", interval.tv_sec, interval.tv_usec);
+    return 0;
+}
+
+int net_timer_handler() {
+    struct net_timer *timer;
+    struct timeval now, diff;
+
+    for (timer = timers; timer; timer = timer->next) {
+        gettimeofday(&now, NULL);
+        timersub(&now, &timer->last, &diff);
+        if (timercmp(&timer->interval, &diff, <) != 0) {
+            timer->handler();
+            timer->last = now;
+        }
+    }
+    return 0;
 }
 
 int net_protocol_register(uint16_t type, void (*handler)(const uint8_t *data, size_t len, struct net_device *dev)) {
@@ -142,11 +188,11 @@ int net_device_add_iface(struct net_device *dev, struct net_iface *iface) {
     return 0;
 }
 
-struct net_iface * net_device_get_iface(struct net_device *dev, int family) {
+struct net_iface *net_device_get_iface(struct net_device *dev, int family) {
     struct net_iface *iface;
 
     for (iface = dev->ifaces; iface; iface = iface->next) {
-        if (iface->family == family){
+        if (iface->family == family) {
             return iface;
         }
     };
@@ -189,7 +235,7 @@ int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net
 
             entry->dev = dev;
             entry->len = len;
-            memcpy(entry+1, data, len);
+            memcpy(entry + 1, data, len);
 
 //            mutex_lock(&proto->mutex);
 
@@ -222,7 +268,8 @@ int net_softirq_handler(void) {
             entry = queue_pop(&proto->queue);
             if (!entry) break;
 
-            debugf("queue popped (num:%u), dev=%s, type=0x%04x, len=%zu", proto->queue.num, entry->dev->name, proto->type, entry->len);
+            debugf("queue popped (num:%u), dev=%s, type=0x%04x, len=%zu", proto->queue.num, entry->dev->name,
+                   proto->type, entry->len);
             debugdump(entry->data, entry->len);
             proto->handler(entry->data, entry->len, entry->dev);
 
