@@ -39,11 +39,11 @@ static int ether_tap_addr(struct net_device *dev) {
     struct ifreq ifr = {};
 
     soc = socket(AF_INET, SOCK_DGRAM, 0);
-    if (soc == 01) {
+    if (soc == -1) {
         errorf("socket: %s, dev=%s", strerror(errno), dev->name);
         return -1;
     }
-
+    ifr.ifr_addr.sa_family = AF_INET;
     strncpy(ifr.ifr_name, PRIV(dev)->name, sizeof(ifr.ifr_name) - 1);
     if (ioctl(soc, SIOCGIFHWADDR, &ifr) == -1) {
         errorf("ioctl [SIOCGIFHWADDR]: %s, dev=%s", strerror(errno), dev->name);
@@ -68,7 +68,7 @@ static int ether_tap_open(struct net_device *dev) {
 
     strncpy(ifr.ifr_name, tap->name, sizeof(ifr.ifr_name) - 1);
     ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
-    if (ioctl(tap->fd, TUNSETIFF, &ifr) == 1) {
+    if (ioctl(tap->fd, TUNSETIFF, &ifr) == -1) {
         errorf("ioctl [TUNSETIFF]: %s, dev=%s", strerror(errno), dev->name);
         close(tap->fd);
         return -1;
@@ -144,7 +144,7 @@ static int ether_tap_isr(unsigned int irq, void *id) {
     while (1) {
         ret = poll(&pfd, 1, 0);
         if (ret == -1) {
-            if (errno = EINTR) {
+            if (errno == EINTR) {
                 continue;
             }
 
@@ -205,7 +205,8 @@ struct net_device *ether_tap_init(const char *name, const char *addr) {
        return NULL;
     }
 
+    char addr1[ETHER_ADDR_STR_LEN];
     intr_request_irq(tap->irq, ether_tap_isr, INTR_IRQ_SHARED, dev->name, dev);
-    infof("ethernet device initialized, dev=%s", dev->name );
+    infof("ethernet device initialized, dev=%s, addr=%s", dev->name, ether_addr_ntop(dev->addr, addr1, sizeof(addr1)) );
     return dev;
 }

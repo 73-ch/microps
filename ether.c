@@ -81,7 +81,6 @@ int ether_transmit_helper(struct net_device *dev, uint16_t type, const uint8_t *
     if (len < ETHER_PAYLOAD_SIZE_MIN) {
         pad = ETHER_PAYLOAD_SIZE_MIN - len;
     }
-
     flen = sizeof(*hdr) + len + pad;
     debugf("dev=%s, type=0x%04x, len=%zu", dev->name, type, flen);
     ether_dump(frame, flen);
@@ -111,8 +110,7 @@ int ether_input_helper(struct net_device *dev, ether_input_func_t callback) {
     type = ntoh16(hdr->type);
     debugf("dev=%s, type=0x%04x, len=%z", dev->name, type, flen);
     ether_dump(frame, flen);
-    return net_input_handler(type, (uint8_t *)(hdr+1), flen - sizeof(*hdr), dev);
-
+    return net_input_handler(type, (uint8_t *) (hdr + 1), flen - sizeof(*hdr), dev);
 }
 
 void ether_setup_helper(struct net_device *dev) {

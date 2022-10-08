@@ -63,5 +63,9 @@ extern int intr_run(void);
 extern void intr_shutdown(void);
 extern int intr_init(void);
 
+static inline void raise_softirq(){
+    kill(getpid(), SIGUSR1);
+}
+
 
 #endif

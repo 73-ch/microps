@@ -84,7 +84,7 @@ static void *intr_thread(void *arg) {
                 break;
 
             default:
-                for(entry  = irqs; entry; entry = entry->next) {
+                for(entry = irqs; entry; entry = entry->next) {
                    if (entry->irq == (unsigned int) sig) {
                        debugf("irq=%d, name=%s", entry->irq, entry->name);
                        entry->handler(entry->irq, entry->dev);
