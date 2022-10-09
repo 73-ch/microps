@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-#include <sys/time.h>d
+#include <sys/time.h>
 
 #include "platform.h"
 
@@ -27,7 +27,7 @@ struct net_protocol_queue_entry {
 };
 
 struct net_timer {
-    struct net_time *next;
+    struct net_timer *next;
     struct timeval interval;
     struct timeval last;
 

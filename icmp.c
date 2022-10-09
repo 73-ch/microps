@@ -98,7 +98,7 @@ void icmp_input(const uint8_t *data, size_t len, ip_addr_t src, ip_addr_t dst, s
         return;
     }
 
-    debugf("%s => %s, len=%zu", ip_addr_ntop(src, addr1, sizeof(addr1)), ip_addr_ntop(src, addr2, sizeof(addr2)), len);
+    debugf("%s => %s, len=%zu", ip_addr_ntop(src, addr1, sizeof(addr1)), ip_addr_ntop(dst, addr2, sizeof(addr2)), len);
     icmp_dump(data, len);
 
     switch(hdr->type) {
@@ -136,7 +136,7 @@ int icmp_output(uint8_t type, uint8_t code, uint32_t values, const uint8_t *data
     /* calc checksum */
     hdr->sum = cksum16((uint16_t *) hdr, msg_len, 0); /* TODO: 本当にデータ全体でチェックサム計算する？ */
 
-    debugf("%s => %s, len %zu", ip_addr_ntop(src, addr1, sizeof(addr1)), ip_addr_ntop(src, addr2, sizeof(addr2)), msg_len);
+    debugf("%s => %s, len %zu", ip_addr_ntop(src, addr1, sizeof(addr1)), ip_addr_ntop(dst, addr2, sizeof(addr2)), msg_len);
     icmp_dump((uint8_t *) hdr, msg_len);
 
     return ip_output(IP_PROTOCOL_ICMP, (const uint8_t *) hdr, msg_len, src, dst);

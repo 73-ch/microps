@@ -135,7 +135,7 @@ static struct arp_cache *arp_cache_update(ip_addr_t pa, const uint8_t *ha) {
 
     cache = arp_cache_select(pa);
     if (!cache) {
-        errorf("pa=%s is not found", ip_addr_ntop(pa, addr1, sizeof(addr1)));
+        debugf("pa=%s is not found", ip_addr_ntop(pa, addr1, sizeof(addr1)));
         return NULL;
     }
 
