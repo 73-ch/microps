@@ -193,11 +193,11 @@ struct net_iface *net_device_get_iface(struct net_device *dev, int family) {
 
     for (iface = dev->ifaces; iface; iface = iface->next) {
         if (iface->family == family) {
-            return iface;
+            break;
         }
     };
 
-    return NULL;
+    return iface;
 }
 
 int net_device_output(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst) {
@@ -326,6 +326,11 @@ int net_init(void) {
 
     if (icmp_init() == -1) {
         errorf("icmp_init() failure");
+        return -1;
+    }
+
+    if (udp_init() == -1) {
+        errorf("udp_init() failure");
         return -1;
     }
 
