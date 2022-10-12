@@ -9,10 +9,15 @@
 extern ssize_t udp_output(struct ip_endpoint *src, struct ip_endpoint *dst, const uint8_t *buf, size_t len);
 
 extern int udp_open(void);
-extern int udp_bind(int index, struct ip_endpoint *local);
+
 extern int udp_close(int id);
 
+extern int udp_bind(int index, struct ip_endpoint *local);
 
-extern int udp_init(void);
+extern ssize_t udp_send_to(int id, uint8_t *data, size_t len, struct ip_endpoint *foreign);
+
+extern ssize_t udp_receive_from(int id, uint8_t *buf, size_t size, struct ip_endpoint *foreign);
+
+extern int udp_init();
 
 #endif //MICROPS_UDP_H
