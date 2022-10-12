@@ -409,13 +409,46 @@ static void tcp_segment_arrives(struct tcp_segment_info *segment_info, uint8_t f
 
         case TCP_PCB_STATE_SYN_SENT:
             /* 1st check the ACK bit */
+            if (TCP_FLG_ISSET(flags, TCP_FLG_ACK)) {
+                if (segment_info->ack_num <= pcb->iss || segment_info->ack_num > pcb->send.next_seq) {
+                    tcp_output_segment(segment_info->ack_num, 0, TCP_FLG_RST, 0, NULL, 0, local, foreign);
+                    return;
+                }
 
+                if (pcb->send.una <= segment_info->ack_num && segment_info->ack_num <= pcb->send.next_seq) {
+                    acceptable = 1;
+                }
+            }
             /* 2nd check the RST bi t*/
 
             /* 3rd check security and precedence (ignore) */
 
             /* 4th check the SYN bit */
+            if (TCP_FLG_ISSET(flags, TCP_FLG_SYN)) {
+                pcb->receive.next_seq = segment_info->seq_num + 1;
+                pcb->irs = segment_info->seq_num;
+                if (acceptable) {
+                    pcb->send.una = segment_info->ack_num;
+                    tcp_retransmit_queue_cleanup(pcb);
+                }
 
+                if (pcb->send.una > pcb->iss) {
+                    pcb->state = TCP_PCB_STATE_ESTABLISHED;
+                    tcp_output(pcb, TCP_FLG_ACK, NULL, 0);
+                    /* NOTE: not specified in the RFC793, but send window initialization required */
+                    pcb->send.window = segment_info->window;
+                    pcb->send.wl1 = segment_info->seq_num;
+                    pcb->send.wl2 = segment_info->ack_num;
+                    sched_wakeup(&pcb->ctx);
+                    /* ignore: continue processing at the sixth step below where the URG bit is checked */
+                    return;
+                } else {
+                    pcb->state = TCP_PCB_STATE_SYN_RECEIVED;
+                    tcp_output(pcb, TCP_FLG_SYN | TCP_FLG_ACK, NULL, 0);
+                    /* ignore: If  there are other controls or text in  the segment, queue them for processing after the ESTABLISHED state has been reached */
+                    return;
+                }
+            }
             /* 5th, if neither of the SYN or RST bits is set then drop the segment and return */
 
             /* drop segment */
@@ -557,7 +590,7 @@ static void tcp_timer() {
         if (pcb->state == TCP_PCB_STATE_FREE) {
             continue;
         }
-        queue_foreach(&pcb->retransmit_queue,tcp_retransmit_queue_emit, pcb);
+        queue_foreach(&pcb->retransmit_queue, tcp_retransmit_queue_emit, pcb);
     }
     mutex_unlock(&mutex);
 }
@@ -661,10 +694,23 @@ int tcp_open_rfc793(struct ip_endpoint *local, struct ip_endpoint *foreign, int 
     }
 
     if (active) {
-        errorf("active open does not implement");
-        tcp_pcb_release(pcb);
-        mutex_unlock(&mutex);
-        return -1;
+        debugf("active open: local=%s, foreign=%s, connecting...", ip_endpoint_ntop(local, ep1, sizeof(ep1)),
+               ip_endpoint_ntop(foreign, ep2, sizeof(ep2)));
+        pcb->local = *local;
+        pcb->foreign = *foreign;
+        pcb->receive.window = sizeof(pcb->receive_buf);
+        pcb->iss = random();
+        if (tcp_output(pcb, TCP_FLG_SYN, NULL, 0) == -1) {
+            errorf("tcp_output() failed");
+            pcb->state = TCP_PCB_STATE_CLOSED;
+            tcp_pcb_release(pcb);
+            mutex_unlock(&mutex);
+            return -1;
+        }
+
+        pcb->send.una = pcb->iss;
+        pcb->send.next_seq = pcb->iss + 1;
+        pcb->state = TCP_PCB_STATE_SYN_SENT;
     } else {
         debugf("passive open: local=%s, waiting for connection ...", ip_endpoint_ntop(local, ep1, sizeof(ep1)));
 
