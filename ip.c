@@ -210,8 +210,8 @@ void ip_dump(const uint8_t *data, size_t len) {
     fprintf(stderr, "      ttl: %u\n", hdr->ttl);
     fprintf(stderr, " protocol: %u\n", hdr->protocol);
     fprintf(stderr, "      sum: 0x%04x\n", ntoh16(hdr->sum));
-    fprintf(stderr, "      src: %s\n", ip_addr_ntop(hdr->src, addr, sizeof(addr)));
-    fprintf(stderr, "      dst: %s\n", ip_addr_ntop(hdr->dst, addr, sizeof(addr)));
+    fprintf(stderr, "      src_addr: %s\n", ip_addr_ntop(hdr->src, addr, sizeof(addr)));
+    fprintf(stderr, "      dst_addr: %s\n", ip_addr_ntop(hdr->dst, addr, sizeof(addr)));
 
 #ifdef HEXDUMP
     hexdump(stderr, data, len);
@@ -424,7 +424,7 @@ ip_output_core(struct ip_iface *iface, uint8_t protocol, const uint8_t *data, si
 
     memcpy(hdr + 1, data, len);
 
-    debugf("dev=%s, dst=%s, protocol=%u, len=%u", NET_IFACE(iface)->dev->name, ip_addr_ntop(dst, addr, sizeof(addr)),
+    debugf("dev=%s, dst_addr=%s, protocol=%u, len=%u", NET_IFACE(iface)->dev->name, ip_addr_ntop(dst, addr, sizeof(addr)),
            protocol, len);
     ip_dump(buf, len);
 

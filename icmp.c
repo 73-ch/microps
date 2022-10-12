@@ -103,7 +103,7 @@ void icmp_input(const uint8_t *data, size_t len, ip_addr_t src, ip_addr_t dst, s
 
     switch(hdr->type) {
         case ICMP_TYPE_ECHO:
-            if (dst != iface->unicast) {/* when dst is broadcast adress */
+            if (dst != iface->unicast) {/* when dst_addr is broadcast adress */
                 dst = iface->unicast;
             }
 
