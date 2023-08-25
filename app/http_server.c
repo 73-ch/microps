@@ -149,6 +149,11 @@ int handle_request(int client_socket) {
     char *tmp_http_version;
     tmp_http_version = strtok(NULL, " ");
     http_version = parse_http_version(tmp_http_version);
+    if (http_version < 0) {
+        errorf("http version not supported.");
+        // 505 error
+        return -1;
+    }
 
 
     // parse header
