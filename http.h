@@ -58,6 +58,8 @@
 #define HTTP_STATUS_GATEWAY_TIMEOUT 504
 #define HTTP_STATUS_HTTP_VERSION_NOT_SUPPORTED 505
 
+extern char* http_status_text(int status_code);
+
 extern char * http_method_name(int http_method) ;
 
 extern int parse_http_method(char *method);

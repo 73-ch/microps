@@ -78,3 +78,50 @@ char *http_version_name(int http_version) {
         return "UNKNOWN";
     }
 }
+
+char *http_status_text(int status_code) {
+    if (status_code == HTTP_STATUS_CONTINUE) { return "Continue"; }
+    else if (status_code == HTTP_STATUS_SWITCHING_PROTOCOLS) { return "Switching Protocols"; }
+    else if (status_code == HTTP_STATUS_OK) { return "OK"; }
+    else if (status_code == HTTP_STATUS_CREATED) { return "Created"; }
+    else if (status_code == HTTP_STATUS_ACCEPTED) { return "Accepted"; }
+    else if (status_code == HTTP_STATUS_NON_AUTHORITATIVE_INFORMATION) { return "Non-Authoritative Information"; }
+    else if (status_code == HTTP_STATUS_NO_CONTENT) { return "No Content"; }
+    else if (status_code == HTTP_STATUS_RESET_CONTENT) { return "Reset Content"; }
+    else if (status_code == HTTP_STATUS_PARTIAL_CONTENT) { return "Partial Content"; }
+    else if (status_code == HTTP_STATUS_MULTIPLE_CHOICES) { return "Multiple Choices"; }
+    else if (status_code == HTTP_STATUS_MOVED_PERMANENTLY) { return "Moved Permanently"; }
+    else if (status_code == HTTP_STATUS_FOUND) { return "Found"; }
+    else if (status_code == HTTP_STATUS_SEE_OTHER) { return "See Other"; }
+    else if (status_code == HTTP_STATUS_NOT_MODIFIED) { return "Not Modified"; }
+    else if (status_code == HTTP_STATUS_USE_PROXY) { return "Use Proxy"; }
+    else if (status_code == HTTP_STATUS_TEMPORARY_REDIRECT) { return "Temporary Redirect"; }
+    else if (status_code == HTTP_STATUS_BAD_REQUEST) { return "Bad Request"; }
+    else if (status_code == HTTP_STATUS_UNAUTHORIZED) { return "Unauthorized"; }
+    else if (status_code == HTTP_STATUS_PAYMENT_REQUIRED) { return "Payment Required"; }
+    else if (status_code == HTTP_STATUS_FORBIDDEN) { return "Forbidden"; }
+    else if (status_code == HTTP_STATUS_NOT_FOUND) { return "Not Found"; }
+    else if (status_code == HTTP_STATUS_METHOD_NOT_ALLOWED) { return "Method Not Allowed"; }
+    else if (status_code == HTTP_STATUS_NOT_ACCEPTABLE) { return "Not Acceptable"; }
+    else if (status_code == HTTP_STATUS_PROXY_AUTHENTICATION_REQUIRED) { return "Proxy Authentication Required"; }
+    else if (status_code == HTTP_STATUS_REQUEST_TIMEOUT) { return "Request Time-out"; }
+    else if (status_code == HTTP_STATUS_CONFLICT) { return "Conflict"; }
+    else if (status_code == HTTP_STATUS_GONE) { return "Gone"; }
+    else if (status_code == HTTP_STATUS_LENGTH_REQUIRED) { return "Length Required"; }
+    else if (status_code == HTTP_STATUS_PRECONDITION_FAILED) { return "Precondition Failed"; }
+    else if (status_code == HTTP_STATUS_REQUEST_ENTITY_TOO_LARGE) { return "Request Entity Too Large"; }
+    else if (status_code == HTTP_STATUS_REQUEST_URI_TOO_LARGE) { return "Request-URI Too Large"; }
+    else if (status_code == HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE) { return "Unsupported Media Type"; }
+    else if (status_code == HTTP_STATUS_REQUESTED_RANGE_NOT_SATISFIABLE) { return "Requested range not satisfiable"; }
+    else if (status_code == HTTP_STATUS_EXPECTATION_FAILED) { return "Expectation Failed"; }
+    else if (status_code == HTTP_STATUS_INTERNAL_SERVER_ERROR) { return "Internal Server Error"; }
+    else if (status_code == HTTP_STATUS_NOT_IMPLEMENTED) { return "Not Implemented"; }
+    else if (status_code == HTTP_STATUS_BAD_GATEWAY) { return "Bad Gateway"; }
+    else if (status_code == HTTP_STATUS_SERVICE_UNAVAILABLE) { return "Service Unavailable"; }
+    else if (status_code == HTTP_STATUS_GATEWAY_TIMEOUT) { return "Gateway Time-out"; }
+    else if (status_code == HTTP_STATUS_HTTP_VERSION_NOT_SUPPORTED) { return "HTTP Version not supported"; }
+    else {
+        errorf("unknown status code");
+        return NULL;
+    }
+}
