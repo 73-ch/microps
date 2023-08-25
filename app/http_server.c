@@ -197,10 +197,25 @@ int handle_request(int client_socket) {
     }
 
 
+    // check required header
+    if (http_version >= HTTP_VERSION_1_1) {
+        tmp_header = header;
+        while (tmp_header != NULL) {
+            if (strcmp(tmp_header->header_name, "Host") == 0) {
+                break;
+            }
+            tmp_header = tmp_header->next;
+        }
+        if (tmp_header == NULL) {
+            // bad request
+            errorf("Host header is required.");
+            return -1;
+        }
+    }
 
 
     // Respond to the client
-    const char *response = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello, world!";
+    const char *response = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello, world!\r\n";
     sock_send(client_socket, response, strlen(response));
 
     // Close the client socket
