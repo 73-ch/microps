@@ -342,15 +342,18 @@ main(int argc, char *argv[]) {
         errorf("sock_listen() failure");
         return -1;
     }
-    foreignlen = sizeof(foreignlen);
-    acc = sock_accept(soc, (struct sockaddr *) &foreign, &foreignlen);
-    if (acc == -1) {
-        errorf("sock_accept() failure");
-        return -1;
-    }
-    infof("connection accepted, foreign=%s", sockaddr_ntop((struct sockaddr *) &foreign, addr, sizeof(addr)));
 
-    handle_request(acc);
+    while (!terminate) {
+        foreignlen = sizeof(foreignlen);
+        acc = sock_accept(soc, (struct sockaddr *) &foreign, &foreignlen);
+        if (acc == -1) {
+            errorf("sock_accept() failure");
+            return -1;
+        }
+        infof("connection accepted, foreign=%s", sockaddr_ntop((struct sockaddr *) &foreign, addr, sizeof(addr)));
+
+        handle_request(acc);
+    }
 
     sock_close(acc);
     sock_close(soc);
