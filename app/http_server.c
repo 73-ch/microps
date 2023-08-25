@@ -81,6 +81,53 @@ setup(void) {
     return 0;
 }
 
+int generate_status_line(int status_code, char* buf) {
+    return sprintf(buf, "HTTP/%s %i %s\r\n", http_version_name(HTTP_VERSION_1_1), status_code, http_status_text(status_code));
+}
+
+int header_to_text(struct http_header* header, char* buf) {
+    int len = 0;
+    while (header != NULL) {
+        int tmp_len = sprintf(&buf[len], "%s: %s\r\n", header->header_name, header->value);
+        if (tmp_len < 0) {
+            errorf("sprintf() failure");
+            return -1;
+        }
+        len += tmp_len;
+        header = header->next;
+    }
+    return len;
+}
+
+int create_response_message(char* buf, int status_code, struct http_header* header, char* body) {
+    int status_line_len = generate_status_line(status_code, buf);
+    if (status_line_len < 0) {
+        errorf("generate_status_line() failure");
+        return -1;
+    }
+
+    int header_len = 0;
+    if (header) {
+        header_len = header_to_text(header, &buf[status_line_len]);
+        if (header_len < 0) {
+            errorf("header_to_text() failure");
+            return -1;
+        }
+        strcpy(&buf[status_line_len + header_len], "\r\n");
+        header_len += 2;
+    }
+
+    if (body) {
+        strcpy(&buf[status_line_len + header_len], body);
+    } else {
+        strcpy(&buf[status_line_len + header_len], "\r\n");
+    }
+
+    strcpy(&buf[status_line_len + header_len + strlen(body)], "\r\n");
+
+    return status_line_len + header_len + strlen(body);
+}
+
 
 int handle_request(int client_socket) {
     char buffer[BUFFER_SIZE];
@@ -219,9 +266,20 @@ int handle_request(int client_socket) {
     }
 
 
+    // response
+    char *response_body = "Hello, world!\r\n";
+
+    struct http_header *response_header = memory_alloc(sizeof(struct http_header));
+    response_header->header_name = "Content-Length";
+    response_header->value = memory_alloc(10);
+    sprintf(response_header->value, "%lu", strlen(response_body));
+
+    char response_message[BUFFER_SIZE];
+    memset(response_message, 0, BUFFER_SIZE);
+    create_response_message(response_message, HTTP_STATUS_OK, response_header, response_body);
+
     // Respond to the client
-    const char *response = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello, world!\r\n";
-    sock_send(client_socket, response, strlen(response));
+    sock_send(client_socket, response_message, strlen(response_message));
 
     // Close the client socket
     close(client_socket);
