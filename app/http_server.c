@@ -82,7 +82,7 @@ setup(void) {
 }
 
 
-void handle_request(int client_socket) {
+int handle_request(int client_socket) {
     char buffer[BUFFER_SIZE];
     char tmp_buffer[BUFFER_SIZE];
     ssize_t bytes_received = 0;
@@ -128,20 +128,20 @@ void handle_request(int client_socket) {
     tmp_method = strtok(start_line, " ");
     if (tmp_method == NULL) {
         errorf("get method error");
-        return;
+        return -1;
     }
     int method;
     method = parse_http_method(tmp_method);
     if (method < 0) {
         errorf("method parse error");
-        return;
+        return -1;
     }
 
     /* target */
     tmp_target = strtok(NULL, " ");
     if (tmp_target == NULL) {
         printf("get target error\n");
-        return;
+        return -1;
     }
 
     /* http version */
@@ -165,7 +165,7 @@ void handle_request(int client_socket) {
 
         if (!new_header) {
             errorf("memory_alloc() failure");
-            return;
+            return -1;
         }
 
         tmp_header_name = strtok(tmp_header_line, ": ");
@@ -205,6 +205,8 @@ void handle_request(int client_socket) {
 
     // Close the client socket
     close(client_socket);
+
+    return 0;
 }
 
 int
