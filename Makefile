@@ -2,6 +2,7 @@ APPS = app/udpc.exe \
        app/udps.exe \
        app/tcpc.exe \
        app/tcps.exe \
+       app/http_server.exe \
 
 TESTS = test/test.exe \
 
@@ -17,6 +18,7 @@ OBJS = util.o \
        udp.o \
        tcp.o \
        sock.o \
+       http.o \
 
 CFLAGS := $(CFLAGS) -g -W -Wall -Wno-unused-parameter -iquote .
 
