@@ -213,7 +213,7 @@ void print_http_header_list(struct http_header_list* header_list) {
         }
 
         strcpy(new_header_list->header.name, tmp_header_name);
-        strcpy(new_header_list->header.value+1, tmp_header_value);
+        strcpy(new_header_list->header.value, tmp_header_value+1);
         if (header_list) {
             new_header_list->next = header_list;
         }

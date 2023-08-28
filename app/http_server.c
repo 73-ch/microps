@@ -102,7 +102,6 @@ int handle_request(int client_socket) {
         memset(tmp_buffer, 0, BUFFER_SIZE);
     }
 
-//    infof("http request message: \n%s", buffer);
 
     struct http_request* request_object;
 
