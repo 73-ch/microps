@@ -58,20 +58,41 @@
 #define HTTP_STATUS_GATEWAY_TIMEOUT 504
 #define HTTP_STATUS_HTTP_VERSION_NOT_SUPPORTED 505
 
-extern char* http_status_text(int status_code);
+extern char *http_status_text(int status_code);
 
-extern char * http_method_name(int http_method) ;
+extern char *http_method_name(int http_method);
 
 extern int parse_http_method(char *method);
 
-extern int parse_http_version(char* version_string);
+extern int parse_http_version(char *version_string);
 
-extern char * http_version_name(int http_version);
+extern char *http_version_name(int http_version);
+
+#define HTTP_HEADER_NAME_MAX 256
+#define HTTP_HEADER_VALUE_MAX 4096
 
 struct http_header {
-    char* header_name;
-    char* value;
-    struct http_header *next;
+    char name[HTTP_HEADER_NAME_MAX];
+    char value[HTTP_HEADER_VALUE_MAX];
 };
+
+struct http_header_list {
+    struct http_header header;
+    struct http_header_list *next;
+};
+
+struct http_request {
+    int method;
+    char *target;
+    int version;
+    struct http_header_list *header_list;
+    char *body;
+};
+
+extern int parse_http_message(char* request_buffer, struct http_request* request);
+
+int header_to_text(struct http_header_list* header_list, char* buf);
+
+extern int create_response_message(char *buf, int status_code, struct http_header *header, char *body);
 
 #endif //HTTP_H

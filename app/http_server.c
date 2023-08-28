@@ -81,54 +81,6 @@ setup(void) {
     return 0;
 }
 
-int generate_status_line(int status_code, char* buf) {
-    return sprintf(buf, "HTTP/%s %i %s\r\n", http_version_name(HTTP_VERSION_1_1), status_code, http_status_text(status_code));
-}
-
-int header_to_text(struct http_header* header, char* buf) {
-    int len = 0;
-    while (header != NULL) {
-        int tmp_len = sprintf(&buf[len], "%s: %s\r\n", header->header_name, header->value);
-        if (tmp_len < 0) {
-            errorf("sprintf() failure");
-            return -1;
-        }
-        len += tmp_len;
-        header = header->next;
-    }
-    return len;
-}
-
-int create_response_message(char* buf, int status_code, struct http_header* header, char* body) {
-    int status_line_len = generate_status_line(status_code, buf);
-    if (status_line_len < 0) {
-        errorf("generate_status_line() failure");
-        return -1;
-    }
-
-    int header_len = 0;
-    if (header) {
-        header_len = header_to_text(header, &buf[status_line_len]);
-        if (header_len < 0) {
-            errorf("header_to_text() failure");
-            return -1;
-        }
-        strcpy(&buf[status_line_len + header_len], "\r\n");
-        header_len += 2;
-    }
-
-    if (body) {
-        strcpy(&buf[status_line_len + header_len], body);
-    } else {
-        strcpy(&buf[status_line_len + header_len], "\r\n");
-    }
-
-    strcpy(&buf[status_line_len + header_len + strlen(body)], "\r\n");
-
-    return status_line_len + header_len + strlen(body);
-}
-
-
 int handle_request(int client_socket) {
     char buffer[BUFFER_SIZE];
     char tmp_buffer[BUFFER_SIZE];
@@ -152,137 +104,31 @@ int handle_request(int client_socket) {
 
 //    infof("http request message: \n%s", buffer);
 
-    // リクエストメッセージのパース
-    char *start_line;
-    char *header_message;
-    char *body_message;
+    struct http_request* request_object;
 
-    start_line = buffer;
-    char *start_line_end = strstr(buffer, "\r\n");
-    *start_line_end = '\0';
+    request_object = memory_alloc(sizeof &request_object);
 
-    header_message = start_line_end + strlen("\r\n");
-    char *header_message_end= strstr(header_message, "\r\n\r\n");
-    *header_message_end = '\0';
-
-    body_message = header_message_end + strlen("\r\n\r\n");
-
-    // 開始行のパース
-    char *tmp_method;
-    char *tmp_target;
-    char *header_parse_restart = NULL;
-    /* method */
-    tmp_method = strtok(start_line, " ");
-    if (tmp_method == NULL) {
-        errorf("get method error");
-        return -1;
-    }
-    int method;
-    method = parse_http_method(tmp_method);
-    if (method < 0) {
-        errorf("method parse error");
-        return -1;
-    }
-
-    /* target */
-    tmp_target = strtok(NULL, " ");
-    if (tmp_target == NULL) {
-        printf("get target error\n");
-        return -1;
-    }
-
-    /* http version */
-    int http_version;
-    char *tmp_http_version;
-    tmp_http_version = strtok(NULL, " ");
-    http_version = parse_http_version(tmp_http_version);
-    if (http_version < 0) {
-        errorf("http version not supported.");
-        // 505 error
-        return -1;
-    }
-
-
-    // parse header
-    char *tmp_header_line;
-    struct http_header *header = NULL;
-
-    char *tmp_header_name;
-    char *tmp_header_value;
-
-    tmp_header_line = strtok_r(header_message, "\r\n", &header_parse_restart);
-
-    while (tmp_header_line != NULL) {
-        struct http_header *new_header = memory_alloc(sizeof(struct http_header *));
-
-        if (!new_header) {
-            errorf("memory_alloc() failure");
-            return -1;
-        }
-
-        tmp_header_name = strtok(tmp_header_line, ": ");
-        tmp_header_value = strtok(NULL, "");
-
-        new_header->header_name = memory_alloc(sizeof(tmp_header_name));
-        new_header->value = memory_alloc(sizeof(tmp_header_value-1));
-
-        strcpy(new_header->header_name, tmp_header_name);
-        strcpy(new_header->value++, tmp_header_value);
-        if (header) {
-            new_header->next = header;
-        }
-
-        header = new_header;
-
-        tmp_header_line = strtok_r(NULL, "\r\n", &header_parse_restart);
-    }
-
-
-    // HTTP Requestの表示
-    infof("HTTP Request: ");
-    infof("method: %s, target: %s, version: %s", http_method_name(method), tmp_target, http_version_name(http_version));
-
-    struct http_header* tmp_header = header;
-    while (tmp_header != NULL) {
-        infof("header: %s: %s", tmp_header->header_name, tmp_header->value);
-        tmp_header  = tmp_header->next;
-    }
-
-
-    // check required header
-    if (http_version >= HTTP_VERSION_1_1) {
-        tmp_header = header;
-        while (tmp_header != NULL) {
-            if (strcmp(tmp_header->header_name, "Host") == 0) {
-                break;
-            }
-            tmp_header = tmp_header->next;
-        }
-        if (tmp_header == NULL) {
-            // bad request
-            errorf("Host header is required.");
-            return -1;
-        }
-    }
-
+    int status_code = parse_http_message(buffer, request_object);
 
     // response
-    char *response_body = "Hello, world!\r\n";
+    char response_body[BUFFER_SIZE];
+
+    if (status_code == 200) {
+        strcpy(response_body, "Hello, world!\r\n");
+    } else {
+        strcpy(response_body, "Server Error\r\n");
+    }
 
     struct http_header *response_header = memory_alloc(sizeof(struct http_header));
-    response_header->header_name = "Content-Length";
-    response_header->value = memory_alloc(10);
+    strcpy(response_header->name, "Content-Length");
     sprintf(response_header->value, "%lu", strlen(response_body));
 
     char response_message[BUFFER_SIZE];
     memset(response_message, 0, BUFFER_SIZE);
-    create_response_message(response_message, HTTP_STATUS_OK, response_header, response_body);
+    create_response_message(response_message, status_code, response_header, response_body);
 
     // Respond to the client
     sock_send(client_socket, response_message, strlen(response_message));
-
-    // Close the client socket
-    close(client_socket);
 
     return 0;
 }
@@ -353,6 +199,9 @@ main(int argc, char *argv[]) {
         infof("connection accepted, foreign=%s", sockaddr_ntop((struct sockaddr *) &foreign, addr, sizeof(addr)));
 
         handle_request(acc);
+
+        // Close the client socket
+        close(acc);
     }
 
     sock_close(acc);

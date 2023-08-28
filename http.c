@@ -1,5 +1,6 @@
 #include "http.h"
 #include "util.h"
+#include "platform.h"
 
 char *http_method_name(int http_method) {
     if (http_method == HTTP_METHOD_GET) {
@@ -124,4 +125,182 @@ char *http_status_text(int status_code) {
         errorf("unknown status code");
         return NULL;
     }
+}
+
+void print_http_header_list(struct http_header_list* header_list) {
+    struct http_header_list* tmp_header = header_list;
+    while (tmp_header != NULL) {
+        infof("header: %s: %s", tmp_header->header.name, tmp_header->header.value);
+        tmp_header  = tmp_header->next;
+    }
+}
+
+ int parse_http_message(char* request_buffer, struct http_request* request) {
+    // リクエストメッセージのパース
+    char *start_line;
+    char *header_message;
+    char *body_message;
+
+    start_line = request_buffer;
+    char *start_line_end = strstr(request_buffer, "\r\n");
+    *start_line_end = '\0';
+
+    header_message = start_line_end + strlen("\r\n");
+    char *header_message_end= strstr(header_message, "\r\n\r\n");
+    if (header_message_end) {
+        *header_message_end = '\0';
+    }
+
+    body_message = header_message_end + strlen("\r\n\r\n");
+
+    // 開始行のパース
+    char *tmp_method;
+    char *tmp_target;
+    char *header_parse_restart = NULL;
+    /* method */
+    tmp_method = strtok(start_line, " ");
+    if (tmp_method == NULL) {
+        errorf("parse method error");
+        return HTTP_STATUS_BAD_REQUEST;
+    }
+    int method;
+    method = parse_http_method(tmp_method);
+    if (method < 0) {
+        errorf("unknown parse error");
+        return HTTP_STATUS_NOT_IMPLEMENTED;
+    }
+
+    /* target */
+    tmp_target = strtok(NULL, " ");
+    if (tmp_target == NULL) {
+        printf("get target error\n");
+        return HTTP_STATUS_BAD_REQUEST;
+    }
+
+    /* http version */
+    int http_version;
+    char *tmp_http_version;
+    tmp_http_version = strtok(NULL, " ");
+    http_version = parse_http_version(tmp_http_version);
+    if (http_version < 0) {
+        errorf("http version not supported.");
+        // 505 error
+        return HTTP_STATUS_HTTP_VERSION_NOT_SUPPORTED;
+    }
+
+    // parse header
+    char *tmp_header_line;
+    struct http_header_list *header_list = NULL;
+
+    char *tmp_header_name;
+    char *tmp_header_value;
+
+    tmp_header_line = strtok_r(header_message, "\r\n", &header_parse_restart);
+
+    while (tmp_header_line != NULL) {
+        struct http_header_list *new_header_list = memory_alloc(sizeof(struct new_header_list *));
+
+        if (!new_header_list) {
+            errorf("memory_alloc() failure");
+            return HTTP_STATUS_INTERNAL_SERVER_ERROR;
+        }
+
+        tmp_header_name = strtok(tmp_header_line, ": ");
+        tmp_header_value = strtok(NULL, "");
+
+        if (strlen(tmp_header_name) > HTTP_HEADER_NAME_MAX || strlen(tmp_header_value) > HTTP_HEADER_VALUE_MAX) {
+            return HTTP_STATUS_REQUEST_ENTITY_TOO_LARGE;
+        }
+
+        strcpy(new_header_list->header.name, tmp_header_name);
+        strcpy(new_header_list->header.value+1, tmp_header_value);
+        if (header_list) {
+            header_list->next = new_header_list;
+        }
+
+        header_list = new_header_list;
+
+        tmp_header_line = strtok_r(NULL, "\r\n", &header_parse_restart);
+    }
+
+
+    // HTTP Requestの表示
+    infof("HTTP Request: ");
+    infof("method: %s, target: %s, version: %s", http_method_name(method), tmp_target, http_version_name(http_version));
+
+    print_http_header_list(header_list);
+
+
+    // check required header
+
+    if (http_version >= HTTP_VERSION_1_1) {
+        struct http_header_list* tmp_header_list;
+        tmp_header_list = header_list;
+        while (tmp_header_list != NULL) {
+            if (strcmp(tmp_header_list->header.name, "Host") == 0) {
+                break;
+            }
+            tmp_header_list = tmp_header_list->next;
+        }
+
+        if (tmp_header_list == NULL) {
+            // bad request
+            errorf("Host header is required.");
+            return HTTP_STATUS_BAD_REQUEST;
+        }
+    }
+     request->header_list = header_list;
+     request->version = http_version;
+     request->target = tmp_target;
+     request->method = method;
+     request->body = body_message;
+
+     return HTTP_STATUS_OK;
+}
+
+int generate_status_line(int status_code, char* buf) {
+    return sprintf(buf, "HTTP/%s %i %s\r\n", http_version_name(HTTP_VERSION_1_1), status_code, http_status_text(status_code));
+}
+
+int header_to_text(struct http_header_list *header_list, char* buf) {
+    int len = 0;
+    while (header_list != NULL) {
+        int tmp_len = sprintf(&buf[len], "%s: %s\r\n", header_list->header.name, header_list->header.value);
+        if (tmp_len < 0) {
+            errorf("sprintf() failure");
+            return -1;
+        }
+        len += tmp_len;
+        header_list = header_list->next;
+    }
+    return len;
+}
+
+int create_response_message(char* buf, int status_code, struct http_header* header, char* body) {
+    int status_line_len = generate_status_line(status_code, buf);
+    if (status_line_len < 0) {
+        errorf("generate_status_line() failure");
+        return -1;
+    }
+
+    int header_len = 0;
+    if (header) {
+        header_len = header_to_text(header, &buf[status_line_len]);
+        if (header_len < 0) {
+            errorf("header_to_text() failure");
+            return -1;
+        }
+        strcpy(&buf[status_line_len + header_len], "\r\n");
+        header_len += 2;
+    }
+
+    if (body) {
+        strcpy(&buf[status_line_len + header_len], body);
+    } else {
+        strcpy(&buf[status_line_len + header_len], "\r\n");
+    }
+
+    strcpy(&buf[status_line_len + header_len + strlen(body)], "\r\n");
+
+    return status_line_len + header_len + strlen(body);
 }
